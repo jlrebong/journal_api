@@ -27,5 +27,4 @@ tqdm
 tweepy
 yfinance
 nltk
-urllib
 bs4
