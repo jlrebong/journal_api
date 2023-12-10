@@ -1,0 +1,23 @@
+flask==2.3.3
+flask-smorest==0.42.1
+werkzeug==2.3.7
+python-dotenv
+marshmallow
+sqlalchemy
+flask-sqlalchemy
+flask-jwt-extended
+passlib
+flask-migrate
+mysqlclient
+gunicorn
+psycopg2
+flask-cors
+pandas
+numpy
+matplotlib
+# fastquant
+scikit-learn
+keras
+tensorflow
+pydot
+graphviz
