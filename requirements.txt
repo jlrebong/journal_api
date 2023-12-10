@@ -24,3 +24,8 @@ graphviz
 psycopg2-binary
 lxml
 tqdm
+tweepy
+yfinance
+nltk
+urllib
+bs4

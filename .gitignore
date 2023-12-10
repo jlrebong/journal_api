@@ -5,3 +5,4 @@ __pycache__
 data.db
 *.pyc
 .DS_STORE
+migrations
