@@ -117,3 +117,8 @@ class Refresh(MethodView):
         current_user = get_jwt_identity()
         new_token=create_access_token(identity=current_user, fresh=False)
         return {"access_token": new_token}
+
+@blp.route("/api/tester")
+class Refresh(MethodView):
+    def get(self):
+        return {"is_live": "API is LIVE"}
