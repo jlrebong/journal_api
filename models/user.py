@@ -10,7 +10,7 @@ class UserModel(db.Model):
     is_admin = db.Column(db.Boolean(), default=False)
 
     is_verified = db.Column(db.Boolean(), default=False)
-    verified_date = db.Column(db.String(255), nullable=False)
+    verified_date = db.Column(db.String(255))
 
     profile = db.relationship(
         "ProfileModel", back_populates="profile", lazy="dynamic", cascade="all, delete"
