@@ -15,8 +15,11 @@ trades_blp = Blueprint("Trades", "trades", description="Trades")
 class Trades(MethodView):
     @trades_blp.response(200, TradesSchema)
     def get(self,portfolio_id):
-        trades = TradesModel.query.filter(TradesModel.portfolio_id == portfolio_id) \
-                                  .filter(TradesModel.closed != False)
+        # trades = TradesModel.query.filter(TradesModel.portfolio_id == portfolio_id) \
+        #                           .filter(TradesModel.closed != False)
+        
+        trades = TradesModel.query.filter(TradesModel.portfolio_id == portfolio_id)
+        
         if trades:
             return jsonify({
                 'data':  [trade.serialized for trade in trades] 
@@ -31,8 +34,10 @@ class Trades(MethodView):
 class Trades(MethodView):
     @trades_blp.response(200, TradesSchema)
     def get(self,portfolio_id):
-        trades = TradesModel.query.filter(TradesModel.portfolio_id == portfolio_id) \
-                                  .filter(TradesModel.closed == 1)
+        # trades = TradesModel.query.filter(TradesModel.portfolio_id == portfolio_id) \
+        #                           .filter(TradesModel.closed == 1)
+        trades = TradesModel.query.filter(TradesModel.portfolio_id == portfolio_id) 
+        
         if trades:
             return jsonify({
                 'data':  [trade.serialized for trade in trades] 
