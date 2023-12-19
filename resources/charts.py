@@ -55,7 +55,7 @@ def getImageBytes(filePath):
 class Charts(MethodView):
     @charts_blp.response(200)
     def get(self,symbol):
-        total_epochs = 5
+        total_epochs = 10
         today = date.today().strftime('%Y-%m-%d')
         stock = symbol.upper()
         chartname = stock + '-' + today + '.png'
