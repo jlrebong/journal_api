@@ -18,8 +18,10 @@ class ProfileRegister(MethodView):
     @profile_blp.response(200, ProfileSchema)
     def post(self, profile_data):
 
-        if 'id' in profile_data:
-            profile = ProfileModel.query.get(profile_data['id'])
+        profile = ProfileModel.query.filter(ProfileModel.user_id == profile_data['user_id']).first()
+
+        print (profile)
+        if profile:
             profile.firstname = profile_data['firstname']
             profile.lastname = profile_data['lastname']
         else:
@@ -39,7 +41,7 @@ class Profile(MethodView):
         if profile:
             return profile
 
-        abort(404)
+        abort(401, "Profile not found")
     
     
 @cross_origin(supports_credentials=True)

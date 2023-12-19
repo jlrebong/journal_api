@@ -20,7 +20,7 @@ class UserRegister(MethodView):
     @blp.response(200)
     def post(self, user_data):
         if UserModel.query.filter(UserModel.username == user_data["username"]).first():
-            abort(409)
+            abort(409, "User already existing")
         
         user = UserModel(
             username=user_data["username"],
@@ -30,7 +30,7 @@ class UserRegister(MethodView):
         db.session.add(user)
         db.session.commit()
 
-        return "User created Successfully."
+        return { "message": "User created Successfully.",} 
 
 @cross_origin(supports_credentials=True)
 @blp.route("/api/user/<string:username>")
@@ -55,7 +55,7 @@ class User(MethodView):
         db.session.delete(user)
         db.session.commit()
 
-        return "User deleted."
+        return { "message": "User Deleted",}
 
 @cross_origin(supports_credentials=True)
 @blp.route("/api/users")
@@ -70,7 +70,6 @@ class Users(MethodView):
 class Login(MethodView):
     @blp.arguments(LoginSchema)
     def post(self, user_data):
-        print(user_data["keep"])
         if(user_data["username"] == '' or user_data["password"] == ''):
             abort(401, "Invalid credentials")
 
@@ -99,6 +98,32 @@ class Login(MethodView):
                 }
         
         abort(401, "Invalid credentials")
+
+
+@cross_origin(supports_credentials=True)
+@blp.route("/api/changepassword")
+class Login(MethodView):
+    @blp.arguments(LoginSchema)
+    def post(self, user_data):
+        if(user_data["username"] == '' or user_data["password"] == ''):
+            abort(401, "Invalid credentials")
+
+        user = UserModel.query.filter(
+            UserModel.username == user_data["username"]
+        ).first()
+
+
+        # 5 days 
+        # add password logic here
+        if user:
+            print(user)
+            user.password = password=pbkdf2_sha256.hash(user_data["password"])
+            db.session.commit()
+            return { "message": "Password Updated",}
+        
+        return abort(401, "Cannot save password")
+
+
 
 @cross_origin(supports_credentials=True)
 @blp.route("/api/logout")
