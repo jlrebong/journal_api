@@ -188,7 +188,7 @@ class Charts(MethodView):
         )
 
         fig = go.Figure(data=[trace1, trace2, trace3, trace4], layout=layout)
-        fig.show()
+        # fig.show()
 
         pio.write_image(fig, chart_filepath) 
 
