@@ -1,5 +1,5 @@
 import base64
-from flask import abort, jsonify
+from flask import Response, abort, jsonify, render_template
 from flask.views import MethodView
 from flask_smorest import Blueprint
 from flask_cors import cross_origin
@@ -77,11 +77,14 @@ def create_dataset(dataset, time_step = 1):
 class Charts(MethodView):
     @charts_blp.response(200)
     def get(self,symbol):
-        total_epochs = 100
+        total_epochs = 50
         today = date.today().strftime('%Y-%m-%d')
         stock = symbol.upper()
         chartname = stock + '-' + today + '.png'
         chart_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'] + '/charts', chartname) 
+
+        chartname_html = stock + '-' + today + '.html'
+        chart_filepath_html = os.path.join('templates', chartname_html) 
 
         # Full Dataset    
         dataset_train = get_stock_data(stock, '2022-01-03', today, 'phisix')
@@ -93,7 +96,7 @@ class Charts(MethodView):
         scaler = MinMaxScaler(feature_range=(0,1))
         scaled_set = scaler.fit_transform(close_data)
 
-        split_percent = 0.75
+        split_percent = 0.70
         split = int(split_percent*len(close_data))
 
         close_train = scaled_set[:split]
@@ -191,56 +194,10 @@ class Charts(MethodView):
         # fig.show()
 
         pio.write_image(fig, chart_filepath) 
+        fig.write_html(chart_filepath_html)
 
-        # # TEST DATA 
-        # # chartname = 'MER' + '2020-01-01' + '2020-12-30' + '.png'
-        # # chart_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'] + '/charts', chartname) 
-        with open(chart_filepath, 'rb') as image_file:
-            base64_bytes = base64.b64encode(image_file.read())
-
-        return {
-            'img_base64': base64_bytes.decode("utf-8")
-        }
-
-    
-
-
-        return
+        return render_template(chartname_html)
 
         
 
-        # -------------  GRAPHING STARTS HERE --------------------------# 
-        # Puts x-axis labels on an angle
-        plt.gca().xaxis.set_tick_params(rotation = 15)  
-        plt.xlabel('Date')
-        plt.ylabel('Price')
-        plt.title(stock + " Prediction by LSTM")
-
-        plt.plot(dataset_train.index.values, dataset_train['close'],color='#ccc', label='Actual Stock Price')
-        plt.plot(dfTrain["date"], dfTrain["close"], color='green', label='Training Set Price')
-        plt.plot(dfTest["date"], dfTest["close"], color='red', label='Prediction Set Price')
-        plt.legend(loc="upper left")
-        plt.savefig(chart_filepath)
-        plt.close()
-
-        # plt.figure(figsize=(10,6))
-        # plt.plot(actual_stock_price, color='blue', label='Actual Stock Price')
-        # plt.plot(predicted_stock_price, color='red', label='Predicted Stock Price')
         
-        # plt.legend()
-        # plt.savefig(chart_filepath)
-        
-
-        # # TEST DATA 
-        # # chartname = 'MER' + '2020-01-01' + '2020-12-30' + '.png'
-        # # chart_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'] + '/charts', chartname) 
-        # with open(chart_filepath, 'rb') as image_file:
-        #     base64_bytes = base64.b64encode(image_file.read())
-
-        # return {
-        #     'img_base64': base64_bytes.decode("utf-8")
-        # }
-        
-    
-
-            
