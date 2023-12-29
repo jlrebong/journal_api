@@ -147,7 +147,7 @@ class Charts(MethodView):
             name = 'Prediction'
         )
         layout = go.Layout(
-            title = "Stock",
+            title = "Stock Symbol - " + stock,
             xaxis = {'title' : "Date"},
             yaxis = {'title' : "Close"}
         )
