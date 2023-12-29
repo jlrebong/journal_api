@@ -15,7 +15,6 @@ flask-cors
 pandas
 numpy
 matplotlib
-# fastquant
 scikit-learn
 keras
 tensorflow
@@ -28,3 +27,5 @@ tweepy
 yfinance
 nltk
 bs4
+plotly
+kaleido

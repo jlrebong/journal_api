@@ -1,8 +1,8 @@
+import base64
 from flask import abort, jsonify
 from flask.views import MethodView
 from flask_smorest import Blueprint
 from flask_cors import cross_origin
-import base64
 
 from stocks import get_stock_data
 from flask import current_app
@@ -13,9 +13,13 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
-import matplotlib.dates as mandates
+import matplotlib.dates as mdates
 import matplotlib
 matplotlib.use('agg')
+
+import plotly.graph_objects as go
+import plotly.io as pio
+
 
 from datetime import date
 
@@ -35,6 +39,7 @@ from keras.optimizers import Adam
 from keras.models import load_model
 from keras.layers import LSTM
 from keras.utils import plot_model
+from keras.preprocessing.sequence import TimeseriesGenerator
 
 import io
 from base64 import encodebytes
@@ -51,150 +56,191 @@ def getImageBytes(filePath):
     encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii') # encode as base64
     return encoded_img
 
-@charts_blp.route("/api/charts/simple/<string:symbol>")
-class Charts(MethodView):
-    @charts_blp.response(200)
-    def get(self,symbol):
-        total_epochs = 5
-        today = date.today().strftime('%Y-%m-%d')
-        stock = symbol.upper()
-        chartname = stock + '-' + today + '.png'
-        chart_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'] + '/charts', chartname) 
-
-        if os.path.isfile(chart_filepath):
-          with open(chart_filepath, 'rb') as image_file:
-            base64_bytes = base64.b64encode(image_file.read())
-
-            return {
-                'img_base64': base64_bytes.decode("utf-8")
-            }
-
-        # Training Data    
-        dataset_train = get_stock_data(stock, '2022-01-03', '2023-06-01', 'phisix')
-
-        training_set = dataset_train.iloc[:,3:4].values
-
-        training_set_len = training_set.shape[0]
-
-        print(training_set.shape)
-        print(training_set_len)
-
-        # Normalizing the dataset
-        scaler = MinMaxScaler(feature_range=(0,1))
-        scaled_set = scaler.fit_transform(training_set)
-
-        # Create X and y train data structures
-        X_train=[]
-        y_train=[]
-        for i in range (60, training_set_len):
-            X_train.append(scaled_set [i - 60:i, 0])
-            y_train.append(scaled_set [i, 0])
-
-        X_train = np.array(X_train)
-        y_train = np.array(y_train)
-
-        # print(X_train.shape)
-        # print(y_train.shape)
-
-        # reshape the data
-        X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
-
-        # print(X_train.shape)
-        # print(X_train[:10])
-
-        # building the LSTM Model
-        regressor = Sequential()
-        regressor.add(LSTM(units=50, return_sequences=True, input_shape= ( X_train.shape[1], 1) ))
-        regressor.add(Dropout(0.2))
-
-        regressor.add(LSTM(units=50, return_sequences=True))
-        regressor.add(Dropout(0.2))
-
-        regressor.add(LSTM(units=50, return_sequences=True))
-        regressor.add(Dropout(0.2))
-
-        regressor.add(LSTM(units=50, return_sequences=False))
-        regressor.add(Dropout(0.2))
-
-        regressor.add(Dense(units=1))
-
-        # Fitting the model
-        regressor.compile(optimizer="Adam",loss="mean_squared_error")
-        regressor.fit(X_train, y_train, epochs=total_epochs, batch_size=32)
-
-
-        # Predict Data Start
-        # Get the actual stock prices after the training price   
-        dataset_test = get_stock_data(stock, '2023-06-01', today, 'phisix')
-        actual_stock_price = dataset_test.iloc[:,3:4].values
-
-        print('** actual ***')
-        print(actual_stock_price[:5])
-
-        dataset_total = pd.concat( (dataset_train.close, dataset_test.close), axis=0 )
-        inputs = dataset_total[len(dataset_total) - len(dataset_test) - 60: ].values
-
-
-        # print(dataset_total.shape)
-        # print(inputs.shape)
-        inputs_len = inputs.shape[0]
-
-        inputs = inputs.reshape(-1, 1)
-        
-        inputs = scaler.transform(inputs)
-
-        print('** inputs ***')
-        # print(inputs.shape)
-
-
-        X_test=[]
-        for i in range (60,inputs_len):
-            X_test.append( inputs[i-60:i, 0] )
-        
-        X_test = np.array(X_test)
-
-        print('** X_test before reshape***')
-        print(X_test.shape)
-
-        X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
-
-        print('** X_test after reshape***')
-        print(X_test.shape)
-
-        # predict the values
-        predicted_stock_price = regressor.predict(X_test)
-        predicted_stock_price = scaler.inverse_transform(predicted_stock_price)
-
-        #Predicted vs Close Value – LSTM
-        # fig, ax = plt.subplots()
-        # fig.canvas.draw()
-        # ax.set_xticklabels(dataset_test.index, rotation=15)
-
-        plt.figure(figsize=(10,6))
-        plt.plot(actual_stock_price, color='blue', label='Actual Stock Price')
-        plt.plot(predicted_stock_price, color='red', label='Predicted Stock Price')
-        plt.title(stock + " Prediction by LSTM")
-        plt.xlabel('Time Scale')
-        plt.ylabel('Price')
-        plt.legend()
-        plt.savefig(chart_filepath)
-        plt.close()
-
-        # TEST DATA 
-        # chartname = 'MER' + '2020-01-01' + '2020-12-30' + '.png'
-        # chart_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'] + '/charts', chartname) 
-        with open(chart_filepath, 'rb') as image_file:
-            base64_bytes = base64.b64encode(image_file.read())
-
-        return {
-            'img_base64': base64_bytes.decode("utf-8")
-        }
-        
-    
 @charts_blp.route("/api/charts/update_cache")
 class UpdateStockCache(MethodView):
     @charts_blp.response(200)
     def get(self):
         update_pse_data_cache(start_date='2022-01-01', verbose=True)
         return "Cache Updated"
+    
+def create_dataset(dataset, time_step = 1):
+    dataX,dataY = [],[]
+    for i in range(len(dataset)-time_step-1):
+                   a = dataset[i:(i+time_step),0]
+                   dataX.append(a)
+                   dataY.append(dataset[i + time_step,0])
+    return np.array(dataX),np.array(dataY)
+  
+
+    
+@charts_blp.route("/api/charts/simple/<string:symbol>")
+class Charts(MethodView):
+    @charts_blp.response(200)
+    def get(self,symbol):
+        total_epochs = 100
+        today = date.today().strftime('%Y-%m-%d')
+        stock = symbol.upper()
+        chartname = stock + '-' + today + '.png'
+        chart_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'] + '/charts', chartname) 
+
+        # Full Dataset    
+        dataset_train = get_stock_data(stock, '2022-01-03', today, 'phisix')
+        
+        # get close column 
+        close_data = dataset_train.iloc[:,3:4].values
+
+        # Normalizing the dataset
+        scaler = MinMaxScaler(feature_range=(0,1))
+        scaled_set = scaler.fit_transform(close_data)
+
+        split_percent = 0.75
+        split = int(split_percent*len(close_data))
+
+        close_train = scaled_set[:split]
+        close_test =  scaled_set[split:]
+
+        date_train = dataset_train.index.values[:split]
+        date_test = dataset_train.index.values[split:]
+
+        look_back = 15
+        train_generator = TimeseriesGenerator(close_train, close_train, length=look_back, batch_size=20)     
+        test_generator = TimeseriesGenerator(close_test, close_test, length=look_back, batch_size=1)
+
+        model = Sequential()
+        model.add(LSTM(50,activation='relu',input_shape=(look_back,1)))
+        model.add(Dense(1))
+
+        model.compile(loss = 'mean_squared_error',optimizer = 'adam')
+        model.fit_generator(train_generator, epochs=total_epochs,verbose = 1)
+
+        prediction = model.predict_generator(test_generator)
+
+        close_train = scaler.inverse_transform(close_train)
+        close_train = close_train.reshape((-1))
+
+        close_test = scaler.inverse_transform(close_test)
+        close_test = close_test.reshape((-1))
+
+        prediction = scaler.inverse_transform(prediction)
+        prediction = prediction.reshape((-1))
+
+        # Plot
+        trace1 = go.Scatter(
+            x = date_train,
+            y = close_train,
+            mode = 'lines',
+            name = 'Training Data'
+        )
+        trace3 = go.Scatter(
+            x = date_test,
+            y = prediction,
+            mode = 'lines',
+            name = 'Prediction'
+        )
+        trace2 = go.Scatter(
+            x = date_test,
+            y = close_test,
+            mode='lines',
+            name = 'Testing Data'
+        )
+
+        layout = go.Layout(
+            title = "Stock",
+            xaxis = {'title' : "Date"},
+            yaxis = {'title' : "Close"}
+        )
+        
+
+        # Forecasting 
+        scaled_set = scaled_set.reshape((-1))
+
+        def predict(num_prediction, model):
+            prediction_list = scaled_set[-look_back:]
+            
+            for _ in range(num_prediction):
+                x = prediction_list[-look_back:]
+                x = x.reshape((1, look_back, 1))
+                out = model.predict(x)[0][0]
+                prediction_list = np.append(prediction_list, out)
+            prediction_list = prediction_list[look_back-1:]
+                
+            return prediction_list
+            
+        def predict_dates(num_prediction):
+            last_date = dataset_train.index.values[-1]
+            prediction_dates = pd.date_range(last_date, periods=num_prediction+1).tolist()
+            return prediction_dates
+        
+        num_prediction = 30
+        forecast = predict(num_prediction, model)
+        forecast = scaler.inverse_transform(forecast.reshape(-1, 1))
+
+        forecast = forecast.reshape((-1))
+
+        forecast_dates = predict_dates(num_prediction)
+
+        # Add our prediction data to the chart
+        trace4 = go.Scatter(
+            x = forecast_dates,
+            y = forecast,
+            mode='lines',
+            name = 'Forecast (30 Days)'
+        )
+
+        fig = go.Figure(data=[trace1, trace2, trace3, trace4], layout=layout)
+        fig.show()
+
+        pio.write_image(fig, chart_filepath) 
+
+        # # TEST DATA 
+        # # chartname = 'MER' + '2020-01-01' + '2020-12-30' + '.png'
+        # # chart_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'] + '/charts', chartname) 
+        with open(chart_filepath, 'rb') as image_file:
+            base64_bytes = base64.b64encode(image_file.read())
+
+        return {
+            'img_base64': base64_bytes.decode("utf-8")
+        }
+
+    
+
+
+        return
+
+        
+
+        # -------------  GRAPHING STARTS HERE --------------------------# 
+        # Puts x-axis labels on an angle
+        plt.gca().xaxis.set_tick_params(rotation = 15)  
+        plt.xlabel('Date')
+        plt.ylabel('Price')
+        plt.title(stock + " Prediction by LSTM")
+
+        plt.plot(dataset_train.index.values, dataset_train['close'],color='#ccc', label='Actual Stock Price')
+        plt.plot(dfTrain["date"], dfTrain["close"], color='green', label='Training Set Price')
+        plt.plot(dfTest["date"], dfTest["close"], color='red', label='Prediction Set Price')
+        plt.legend(loc="upper left")
+        plt.savefig(chart_filepath)
+        plt.close()
+
+        # plt.figure(figsize=(10,6))
+        # plt.plot(actual_stock_price, color='blue', label='Actual Stock Price')
+        # plt.plot(predicted_stock_price, color='red', label='Predicted Stock Price')
+        
+        # plt.legend()
+        # plt.savefig(chart_filepath)
+        
+
+        # # TEST DATA 
+        # # chartname = 'MER' + '2020-01-01' + '2020-12-30' + '.png'
+        # # chart_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'] + '/charts', chartname) 
+        # with open(chart_filepath, 'rb') as image_file:
+        #     base64_bytes = base64.b64encode(image_file.read())
+
+        # return {
+        #     'img_base64': base64_bytes.decode("utf-8")
+        # }
+        
+    
+
             

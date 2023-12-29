@@ -70,4 +70,5 @@ def get_stock_data(
     df.end_date = end_date
     df.symbol = symbol
 
-    return df[df_columns]
+    # return df[df_columns]
+    return df
