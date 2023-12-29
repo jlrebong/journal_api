@@ -77,7 +77,7 @@ def create_dataset(dataset, time_step = 1):
 class Charts(MethodView):
     @charts_blp.response(200)
     def get(self,symbol):
-        total_epochs = 50
+        total_epochs = 100
         today = date.today().strftime('%Y-%m-%d')
         stock = symbol.upper()
         chartname = stock + '-' + today + '.png'
@@ -129,16 +129,10 @@ class Charts(MethodView):
 
         # Plot
         trace1 = go.Scatter(
-            x = date_train,
-            y = close_train,
+            x = date_train[150:],
+            y = close_train[150:],
             mode = 'lines',
             name = 'Training Data'
-        )
-        trace3 = go.Scatter(
-            x = date_test,
-            y = prediction,
-            mode = 'lines',
-            name = 'Prediction'
         )
         trace2 = go.Scatter(
             x = date_test,
@@ -146,7 +140,12 @@ class Charts(MethodView):
             mode='lines',
             name = 'Testing Data'
         )
-
+        trace3 = go.Scatter(
+            x = date_test,
+            y = prediction,
+            mode = 'lines',
+            name = 'Prediction'
+        )
         layout = go.Layout(
             title = "Stock",
             xaxis = {'title' : "Date"},
